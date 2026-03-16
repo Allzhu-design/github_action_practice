@@ -1,0 +1,63 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        files: \.(yaml|yml|json|py|xml)$
+        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
+      - id: end-of-file-fixer
+        exclude: \.min\.(js|css)$|^(ros2_ws/(build|install|log)/|\.git/)
+      - id: check-yaml
+        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
+      - id: check-json
+        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
+      - id: detect-private-key
+        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
+
+  # --- Python Code formatting (Black) ---
+  - repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+      - id: black
+        language_version: python3
+        files: ^ros2_ws/src/.*\.py$
+        exclude: ^(ros2_ws/(build|install|log)/test/|\.git/)
+
+  # --- Python import sorting (isort) ---
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+        files: ^ros2_ws/src/.*\.py$
+        exclude: ^(ros2_ws/(build|install|log)/test/|\.git/)
+
+  # --- Python code style check (Flake8) ---
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: ["--max-line-length=100", "--statistics"]
+        files: ^ros2_ws/src/.*\.py$
+        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
+        additional_dependencies: ["flake8-bugbear", "flake8-builtins"]
+
+  # --- YAML validation for ROS2 config files ---
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        files: \.(yaml|yml)$
+        args: ["-d", "{extends: default, rules: {line-length: {max: 120}}}"]
+        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
+
+  # --- Dockerfile linting (optional) ---
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint
+        files: \.dockerfile$|Dockerfile$
+        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
