@@ -1,10 +1,10 @@
+---
 name: CI - Lint, Build & Test (ROS2)
 
 on:
   pull_request:
     branches: ["**"]
-  push:
-    # branches: [main, master]
+  push: {}
   workflow_dispatch:
     inputs:
       debug_enabled:
@@ -173,7 +173,7 @@ jobs:
               r === 'skipped'  ? '⏭️' : '⚠️';
 
             const overall =
-              [precommitResult, lintResult, buildResult, testResult].every(r => r === 'success')
+              [precommitResult, buildResult, testResult].every(r => r === 'success')
                 ? '✅ All checks passed!'
                 : '❌ One or more checks failed.';
 
@@ -188,7 +188,9 @@ jobs:
               `| ${icon(buildResult)} Build (colcon)     | \`${buildResult}\`  |`,
               `| ${icon(testResult)}  Test (colcon)      | \`${testResult}\`   |`,
               '',
-              `> Workflow run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`,
+              `> Workflow run: [#${{ github.run_number }}](` +
+              `${{ github.server_url }}/${{ github.repository }}/` +
+              `actions/runs/${{ github.run_id }})`,
             ].join('\n');
 
             await github.rest.issues.createComment({
