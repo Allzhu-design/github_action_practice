@@ -20,7 +20,7 @@ env:
 jobs:
   pre-commit:
     name: Pre-commit Hooks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
     steps:
@@ -31,15 +31,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: .pre-commit-config.yaml
 
       - name: Run pre-commit checks
         uses: pre-commit/action@v3.0.0
 
   build:
     name: Build ROS2 Package (colcon)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: pre-commit
     permissions:
       contents: read
@@ -47,23 +45,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup ROS2 apt sources
+      - name: Setup ROS2 apt sources and install dependencies
         run: |
           sudo apt-get update
           sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
           sudo apt-get update
-
-      - name: Setup ROS2
-        uses: ros-tooling/setup-ros@v0.7
-        with:
-          required-ros-distributions: ${{ env.ROS_DISTRO }}
+          sudo apt-get install -y --no-install-recommends ros-humble-desktop python3-colcon-common-extensions
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          cache-dependency-path: '**/requirements*.txt'
 
       - name: Cache colcon build
         uses: actions/cache@v4
@@ -94,7 +89,7 @@ jobs:
 
   test:
     name: Test ROS2 Package
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build
     permissions:
       contents: read
@@ -102,23 +97,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup ROS2 apt sources
+      - name: Setup ROS2 apt sources and install dependencies
         run: |
           sudo apt-get update
           sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
           sudo apt-get update
-
-      - name: Setup ROS2
-        uses: ros-tooling/setup-ros@v0.7
-        with:
-          required-ros-distributions: ${{ env.ROS_DISTRO }}
+          sudo apt-get install -y --no-install-recommends ros-humble-desktop python3-colcon-common-extensions
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          cache-dependency-path: '**/requirements*.txt'
 
       - name: Cache colcon build
         uses: actions/cache@v4
@@ -149,7 +141,7 @@ jobs:
 
   report:
     name: Report results to PR
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [pre-commit, build, test]
     if: always() && github.event_name == 'pull_request'
     permissions:
