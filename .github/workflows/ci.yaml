@@ -16,6 +16,7 @@ on:
 env:
   PYTHON_VERSION: "3.11"
   ROS_DISTRO: "humble"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   pre-commit:
@@ -78,12 +79,15 @@ jobs:
 
       - name: Build ROS2 package with colcon
         run: |
+          source /opt/ros/humble/setup.bash
           cd ros2_ws
           colcon build --symlink-install
 
       - name: Verify package installation
         run: |
+          source /opt/ros/humble/setup.bash
           cd ros2_ws
+          source install/setup.bash
           ls -la install/my_py_package/lib/
           echo "✅ Build completed successfully"
 
@@ -130,13 +134,17 @@ jobs:
 
       - name: Run ROS2 package tests
         run: |
+          source /opt/ros/humble/setup.bash
           cd ros2_ws
+          source install/setup.bash
           colcon test --packages-select my_py_package
 
       - name: Display test results
         if: always()
         run: |
+          source /opt/ros/humble/setup.bash
           cd ros2_ws
+          source install/setup.bash
           colcon test-result --all
 
   report:
