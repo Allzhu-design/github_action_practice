@@ -1,0 +1,31 @@
+[flake8]
+# Exclude auto-generated files and build artifacts
+exclude =
+    .git,
+    __pycache__,
+    .tox,
+    venv,
+    build,
+    install,
+    .colcon,
+    prefix_override,
+    *.egg-info,
+    local_setup*,
+    *sitecustomize*
+
+# Max line length
+max-line-length = 100
+
+# Ignore specific warnings
+# E501: line too long (ignore auto-generated files)
+# E203: whitespace before ':'
+# W503: line break before binary operator
+# CNL100: Class definition does not have a new line
+# D1xx: Docstring errors (PEP 257) - often not applicable to ROS nodes
+# I201: Missing newline between import groups
+ignore = E501,E203,W503,CNL100,D100,D101,D102,D103,D104,D107,I201
+
+# Allow specific files to have certain errors
+per-file-ignores =
+    __init__.py: F401
+    setup.py: E501

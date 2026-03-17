@@ -1,53 +1,87 @@
----
+## Configuration for pre-commit: a tool for configuring git-hooks
+# SEE: https://pre-commit.com/#adding-pre-commit-plugins-to-your-project
+
+# Note: about choosing stage
+# There are lot ot legacy code in the repo right now.
+# Strategy below is proposed to make the transition as smooth as possible:
+#  1. enable the check at 'pre-commit' to enforce rule on modified file
+#     only, while allowing pushing existing commit to server without
+#     checking by no installing in 'pre-push'
+#  2. after developers being familiar with rule checking and fixing,
+#     Github server side can enforce checking on PR to only approve compliant
+#     PR
+#  3. when people are comfortable with PR checking, we can install the check
+#     to both 'pre-commit' and 'pre-push'
+default_stages:  # SEE: https://pre-commit.com/#supported-git-hooks
+  - pre-commit
+  # - pre-merge-commit
+  # - pre-push
+default_install_hook_types: [pre-commit, pre-push]
+exclude: ^extern/repo/ # ignore external repos
+fail_fast: true # stop running hooks after the first failure.
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v21.1.1
     hooks:
-      - id: trailing-whitespace
-        files: \.(yaml|yml|json|py|xml)$
-        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
-      - id: check-yaml
-        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
-      - id: check-json
-        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
-      - id: check-added-large-files
-        args: ['--maxkb=500']
-        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
-      - id: detect-private-key
-        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
+      - id: clang-format
+        description: Run Clang Formatter on C++ files and format them in place
+        args:
+          - '-i'  # in-place formatting
+          - '--style=file' # use .clang-format
+        types_or: [c++, c]
 
-  # --- Python Code formatting (Black) ---
-  - repo: https://github.com/psf/black
-    rev: 26.3.1
+  - repo: https://github.com/hhatto/autopep8
+    rev: v2.3.2
     hooks:
-      - id: black
-        language_version: python3
-        files: ^ros2_ws/src/.*\.py$
-        exclude: ^(ros2_ws/(build|install|log)/test/|\.git/)
+      - id: autopep8
+        args: ['--in-place']
 
-  # --- Python import sorting (isort) ---
-  - repo: https://github.com/PyCQA/isort
-    rev: 8.0.1
-    hooks:
-      - id: isort
-        args: ["--profile", "black"]
-        files: ^ros2_ws/src/.*\.py$
-        exclude: ^(ros2_ws/(build|install|log)/test/|\.git/)
-
-  # --- Python code style check (Flake8) ---
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.3.0
-    hooks:
-      - id: flake8
-        args: ["--max-line-length=100", "--statistics"]
-        files: ^ros2_ws/src/.*\.py$
-        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
-        additional_dependencies: ["flake8-bugbear", "flake8-builtins"]
-
-  # --- Dockerfile linting (optional) ---
+  # REF: https://github.com/hadolint/hadolint
   - repo: https://github.com/hadolint/hadolint
     rev: v2.14.0
     hooks:
-      - id: hadolint
-        files: \.dockerfile$|Dockerfile$
-        exclude: ^(ros2_ws/(build|install|log)/|\.git/)
+      - id: hadolint-docker
+        #case in-sensitive pattern to mach Dockerfile, xxx.dockerfile
+        files: "(?i).*dockerfile"
+        #override default value "dockerfile" which result in only
+        #the files with name "Dockerfile" are accepted
+        types: ["text"]
+
+  # REF: https://cmake-format.readthedocs.io/en/latest/index.html
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+    - id: cmake-format
+    - id: cmake-lint
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=10000] # Git file limit is 50MiB
+      - id: check-ast
+        types: [python]
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+        types: [executable]
+        types_or: [sh, zsh, bash, python]
+      - id: check-illegal-windows-names
+      - id: check-json
+        types_or: [json, json5]
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+        types_or: [sh, zsh, bash, python]
+      - id: check-symlinks
+        types: [symlink]
+      - id: check-xml
+        types_or: [xml]
+      - id: check-yaml
+        types_or: [yaml]
+        args: ['--unsafe']
+      - id: destroyed-symlinks
+      - id: end-of-file-fixer
+      # - id: name-tests-test
+      # - id: pretty-format-json
+      # types_or: [json, json5]
+      # - id: sort-simple-yaml
+      - id: trailing-whitespace
