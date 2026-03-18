@@ -6,18 +6,15 @@ on:
     inputs:
       ros-distro:
         description: 'ROS2 distribution (humble, jazzy, etc.)'
-        default: 'humble'
-        required: false
+        required: true
         type: string
       python-version:
         description: 'Python version'
-        default: '3.11'
-        required: false
+        required: true
         type: string
       runs_on:
         description: 'Runner to use for the job'
-        default: 'ubuntu-22.04'
-        required: false
+        required: true
         type: string
     outputs:
       build-status:
