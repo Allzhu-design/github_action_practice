@@ -1,0 +1,71 @@
+---
+name: Reusable Workflow (Build & Test ROS2)
+
+on:
+  workflow_call:
+    inputs:
+      ros-distro:
+        description: 'ROS2 distribution (humble, jazzy, etc.)'
+        required: true
+        type: string
+      python-version:
+        description: 'Python version'
+        required: true
+        type: string
+      runs_on:
+        description: 'Runner to use for the job'
+        required: true
+        type: string
+    outputs:
+      build-status:
+        description: 'Build result status'
+        value: ${{ jobs.build-and-test.outputs.build-status }}
+      test-status:
+        description: 'Test result status'
+        value: ${{ jobs.build-and-test.outputs.test-status }}
+
+jobs:
+  build-and-test:
+    name: Build & Test ROS2
+    runs-on: ${{ inputs.runs_on }}
+    permissions:
+      contents: read
+
+    outputs:
+      build-status: ${{ steps.colcon.outputs.build-status }}
+      test-status: ${{ steps.colcon.outputs.test-status }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup ROS2 with cache
+        uses: ./.github/actions/setup-ros2
+        with:
+          ros-distro: ${{ inputs.ros-distro }}
+          cache-version: 'v2'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements-dev.txt
+            ros2_ws/src/*/setup.py
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools
+          pip install colcon-common-extensions pytest pytest-cov pygments
+
+      - name: Build & Test with colcon
+        id: colcon
+        uses: ./.github/actions/colcon-build-test
+        with:
+          ros-distro: ${{ inputs.ros-distro }}
+          workspace-dir: ros2_ws
+          python-version: ${{ inputs.python-version }}
+          build-args: '--symlink-install --event-handlers console_cohesion+'
+          test-args: '--event-handlers console_cohesion+'
+          skip-tests: 'false'

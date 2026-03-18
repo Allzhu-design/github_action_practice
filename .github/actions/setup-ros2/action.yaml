@@ -1,0 +1,79 @@
+---
+name: Setup ROS2 Environment
+description: 'Install and cache ROS2 environment (apt packages and setup files)'
+
+inputs:
+  ros-distro:
+    description: 'ROS2 distribution (humble, jazzy, etc.)'
+    required: false
+    default: 'humble'
+  cache-version:
+    description: 'Cache version suffix (increment to force rebuild)'
+    required: false
+    default: 'v2'
+
+outputs:
+  cache-hit:
+    description: 'Whether ROS2 was restored from cache'
+    value: ${{ steps.ros2-cache.outputs.cache-hit }}
+  ros-setup-bash:
+    description: 'Path to ROS2 setup.bash'
+    value: /opt/ros/${{ inputs.ros-distro }}/setup.bash
+
+runs:
+  using: composite
+
+  steps:
+    - name: Generate ROS2 cache key
+      id: ros2-cache-key
+      shell: bash
+      run: |
+        CACHE_KEY="ros2-${{ inputs.ros-distro }}-$(lsb_release -cs)-${{ inputs.cache-version }}"
+        echo "cache_key=${CACHE_KEY}" >> $GITHUB_OUTPUT
+        echo "Cache key: ${CACHE_KEY}"
+
+    - name: Restore ROS2 environment from cache
+      id: ros2-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          /opt/ros/${{ inputs.ros-distro }}
+          /usr/lib/python3/dist-packages
+          /usr/share/ros
+        key: ${{ steps.ros2-cache-key.outputs.cache_key }}-${{ runner.os }}
+        restore-keys: |
+          ros2-${{ inputs.ros-distro }}-$(lsb_release -cs)-${{ inputs.cache-version }}-${{ runner.os }}
+
+    - name: Setup ROS2 apt sources (if not cached)
+      if: steps.ros2-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+          -o /usr/share/keyrings/ros-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
+          http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | \
+          sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+        sudo apt-get update
+        echo "✅ ROS2 apt sources configured"
+
+    - name: Install ROS2 dependencies (if not cached)
+      if: steps.ros2-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        sudo apt-get install -y --no-install-recommends \
+          ros-${{ inputs.ros-distro }}-desktop \
+          python3-colcon-common-extensions
+        echo "✅ ROS2 environment installed"
+
+    - name: Verify ROS2 installation
+      shell: bash
+      run: |
+        if [ -f "/opt/ros/${{ inputs.ros-distro }}/setup.bash" ]; then
+          echo "✅ ROS2 found in cache or just installed"
+          source /opt/ros/${{ inputs.ros-distro }}/setup.bash
+          echo "ROS_DISTRO: $ROS_DISTRO"
+        else
+          echo "❌ ROS2 installation failed"
+          exit 1
+        fi

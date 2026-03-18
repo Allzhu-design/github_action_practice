@@ -1,0 +1,87 @@
+## Configuration for pre-commit: a tool for configuring git-hooks
+# SEE: https://pre-commit.com/#adding-pre-commit-plugins-to-your-project
+
+# Note: about choosing stage
+# There are lot ot legacy code in the repo right now.
+# Strategy below is proposed to make the transition as smooth as possible:
+#  1. enable the check at 'pre-commit' to enforce rule on modified file
+#     only, while allowing pushing existing commit to server without
+#     checking by no installing in 'pre-push'
+#  2. after developers being familiar with rule checking and fixing,
+#     Github server side can enforce checking on PR to only approve compliant
+#     PR
+#  3. when people are comfortable with PR checking, we can install the check
+#     to both 'pre-commit' and 'pre-push'
+default_stages:  # SEE: https://pre-commit.com/#supported-git-hooks
+  - pre-commit
+  # - pre-merge-commit
+  # - pre-push
+default_install_hook_types: [pre-commit, pre-push]
+exclude: ^extern/repo/ # ignore external repos
+fail_fast: true # stop running hooks after the first failure.
+repos:
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v21.1.1
+    hooks:
+      - id: clang-format
+        description: Run Clang Formatter on C++ files and format them in place
+        args:
+          - '-i'  # in-place formatting
+          - '--style=file' # use .clang-format
+        types_or: [c++, c]
+
+  - repo: https://github.com/hhatto/autopep8
+    rev: v2.3.2
+    hooks:
+      - id: autopep8
+        args: ['--in-place']
+
+  # REF: https://github.com/hadolint/hadolint
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.14.0
+    hooks:
+      - id: hadolint-docker
+        #case in-sensitive pattern to mach Dockerfile, xxx.dockerfile
+        files: "(?i).*dockerfile"
+        #override default value "dockerfile" which result in only
+        #the files with name "Dockerfile" are accepted
+        types: ["text"]
+
+  # REF: https://cmake-format.readthedocs.io/en/latest/index.html
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+    - id: cmake-format
+    - id: cmake-lint
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=10000] # Git file limit is 50MiB
+      - id: check-ast
+        types: [python]
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+        types: [executable]
+        types_or: [sh, zsh, bash, python]
+      - id: check-illegal-windows-names
+      - id: check-json
+        types_or: [json, json5]
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+        types_or: [sh, zsh, bash, python]
+      - id: check-symlinks
+        types: [symlink]
+      - id: check-xml
+        types_or: [xml]
+      - id: check-yaml
+        types_or: [yaml]
+        args: ['--unsafe']
+      - id: destroyed-symlinks
+      - id: end-of-file-fixer
+      # - id: name-tests-test
+      # - id: pretty-format-json
+      # types_or: [json, json5]
+      # - id: sort-simple-yaml
+      - id: trailing-whitespace

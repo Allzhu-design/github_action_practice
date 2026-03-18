@@ -1,0 +1,131 @@
+---
+name: Run Colcon Build & Test
+description: 'Build and test ROS2 packages using colcon with caching'
+
+inputs:
+  ros-distro:
+    description: 'ROS2 distribution (humble, jazzy, etc.)'
+    required: false
+    default: 'humble'
+  workspace-dir:
+    description: 'Path to ROS2 workspace'
+    required: false
+    default: 'ros2_ws'
+  python-version:
+    description: 'Python version'
+    required: false
+    default: '3.11'
+  build-args:
+    description: 'Additional arguments for colcon build'
+    required: false
+    default: '--symlink-install --event-handlers console_cohesion+'
+  test-args:
+    description: 'Additional arguments for colcon test'
+    required: false
+    default: '--event-handlers console_cohesion+'
+  skip-tests:
+    description: 'Skip running tests'
+    required: false
+    default: 'false'
+
+outputs:
+  build-status:
+    description: 'Build result (success/failure)'
+    value: ${{ steps.build.outputs.status }}
+  test-status:
+    description: 'Test result (success/failure/skipped)'
+    value: ${{ steps.test.outputs.status }}
+
+runs:
+  using: composite
+
+  steps:
+    - name: Cache colcon build artifacts
+      id: colcon-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ inputs.workspace-dir }}/build
+          ${{ inputs.workspace-dir }}/install
+          ${{ inputs.workspace-dir }}/log
+        key: ${{ runner.os }}-colcon-${{ inputs.python-version }}-${{ hashFiles(format('{0}/src/*/setup.py', inputs.workspace-dir), format('{0}/src/*/package.xml', inputs.workspace-dir)) }}
+        restore-keys: |
+          ${{ runner.os }}-colcon-${{ inputs.python-version }}-
+          ${{ runner.os }}-colcon-
+
+    - name: Build ROS2 package with colcon
+      id: build
+      shell: bash
+      run: |
+        source /opt/ros/${{ inputs.ros-distro }}/setup.bash
+        cd ${{ inputs.workspace-dir }}
+
+        echo "🏗️  Starting colcon build..."
+        if colcon build ${{ inputs.build-args }}; then
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "✅ Build completed successfully"
+        else
+          echo "status=failure" >> $GITHUB_OUTPUT
+          echo "❌ Build failed"
+          exit 1
+        fi
+
+    - name: Verify package installation
+      shell: bash
+      run: |
+        source /opt/ros/${{ inputs.ros-distro }}/setup.bash
+        cd ${{ inputs.workspace-dir }}
+        source install/setup.bash
+
+        echo "🔍 Verifying package installation..."
+        if [ -d "install/my_py_package/lib" ]; then
+          ls -la install/my_py_package/lib/
+          echo "✅ Package verified"
+        else
+          echo "⚠️  Package lib directory not found (may be normal for some packages)"
+        fi
+
+    - name: Run ROS2 package tests
+      id: test
+      if: inputs.skip-tests != 'true'
+      shell: bash
+      run: |
+        source /opt/ros/${{ inputs.ros-distro }}/setup.bash
+        cd ${{ inputs.workspace-dir }}
+        source install/setup.bash
+
+        echo "🧪 Starting colcon tests..."
+        if colcon test --packages-select my_py_package ${{ inputs.test-args }}; then
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "✅ Tests completed successfully"
+        else
+          echo "status=failure" >> $GITHUB_OUTPUT
+          echo "❌ Tests failed"
+          exit 1
+        fi
+
+    - name: Display test results
+      if: inputs.skip-tests != 'true' && always()
+      shell: bash
+      run: |
+        source /opt/ros/${{ inputs.ros-distro }}/setup.bash
+        cd ${{ inputs.workspace-dir }}
+        source install/setup.bash
+
+        echo "📊 Test Results:"
+        colcon test-result --all || echo "Test result display completed"
+
+    - name: Mark tests as skipped
+      if: inputs.skip-tests == 'true'
+      shell: bash
+      run: |
+        echo "status=skipped" >> $GITHUB_OUTPUT
+        echo "⏭️  Tests were skipped"
+
+    - name: Upload test results
+      if: inputs.skip-tests != 'true' && always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ros2-test-results-${{ github.run_id }}
+        path: ${{ inputs.workspace-dir }}/log/latest_test/
+        retention-days: 30

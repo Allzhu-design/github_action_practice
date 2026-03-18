@@ -1,0 +1,42 @@
+---
+name: CI Pipeline - Complete Workflow Chain
+
+on:
+  pull_request:
+    branches: ["**"]
+  push: {}
+  workflow_dispatch:
+
+jobs:
+  config:
+    uses: ./.github/workflows/config.yaml
+
+  lint:
+    needs: config
+    uses: ./.github/workflows/lint.yaml
+    with:
+      python-version: ${{ needs.config.outputs.python-version }}
+      runs_on: ${{ needs.config.outputs.runs_on }}
+    secrets: inherit
+
+  build-and-test:
+    needs: [config, lint]
+    uses: ./.github/workflows/build-and-test.yaml
+    with:
+      ros-distro: ${{ needs.config.outputs.ros-distro }}
+      python-version: ${{ needs.config.outputs.python-version }}
+      runs_on: ${{ needs.config.outputs.runs_on }}
+    secrets: inherit
+
+  report:
+    needs: [config, build-and-test]
+    if: always() && needs.build-and-test.result != 'skipped'
+    uses: ./.github/workflows/report.yaml
+    permissions:
+      pull-requests: write
+      contents: read
+    with:
+      build-status: ${{ needs.build-and-test.outputs.build-status }}
+      test-status: ${{ needs.build-and-test.outputs.test-status }}
+      runs_on: ${{ needs.config.outputs.runs_on }}
+    secrets: inherit

@@ -1,0 +1,31 @@
+---
+name: Reusable Workflow (Common Config)
+
+on:
+  workflow_call:
+    outputs:
+      python-version:
+        description: 'Python version used across all workflows'
+        value: ${{ jobs.config.outputs.python-version }}
+      ros-distro:
+        description: 'ROS2 distribution'
+        value: ${{ jobs.config.outputs.ros-distro }}
+      runs_on:
+        description: 'Default runner for jobs'
+        value: ${{ jobs.config.outputs.runs_on }}
+
+jobs:
+  config:
+    name: Load Config
+    runs-on: ubuntu-22.04
+    outputs:
+      python-version: ${{ steps.set-config.outputs.python-version }}
+      ros-distro: ${{ steps.set-config.outputs.ros-distro }}
+      runs_on: ${{ steps.set-config.outputs.runs_on }}
+    steps:
+      - name: Set common configuration
+        id: set-config
+        run: |
+          echo "python-version=3.11" >> $GITHUB_OUTPUT
+          echo "ros-distro=humble" >> $GITHUB_OUTPUT
+          echo "runs_on=ubuntu-22.04" >> $GITHUB_OUTPUT

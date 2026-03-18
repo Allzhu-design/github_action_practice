@@ -1,0 +1,10 @@
+---
+talker:
+  ros__parameters:
+    publish_rate: 2.0
+    topic: "chatter"
+    message_prefix: "Hello from YAML"
+
+listener:
+  ros__parameters:
+    topic: "chatter"
