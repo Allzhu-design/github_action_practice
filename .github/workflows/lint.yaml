@@ -1,39 +1,37 @@
 ---
-name: Code Quality - Lint & Pre-commit
+name: Reusable Workflow (Lint & Pre-commit)
 
 on:
   workflow_call:
     inputs:
       python-version:
-        type: string
         description: 'Python version'
         default: '3.11'
-    outputs:
-      lint-status:
-        description: 'Lint result status'
-        value: ${{ jobs.lint.outputs.lint-status }}
-
-env:
-  PYTHON_VERSION: '3.11'
+        required: false
+        type: string
+      runs_on:
+        description: 'Runner to use for the job'
+        default: 'ubuntu-22.04'
+        required: false
+        type: string
 
 jobs:
   lint:
     name: Pre-commit Hooks & Lint
-    runs-on: ubuntu-22.04
+    runs-on: ${{ inputs.runs_on }}
     permissions:
       contents: read
-
-    outputs:
-      lint-status: ${{ steps.run-checks.outcome }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ inputs.python-version }}
           cache: 'pip'
           cache-dependency-path: |
             requirements-dev.txt
@@ -45,5 +43,6 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Run pre-commit checks
-        id: run-checks
-        uses: pre-commit/action@v3.0.0
+        uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: --all-files

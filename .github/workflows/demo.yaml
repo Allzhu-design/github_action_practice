@@ -7,31 +7,33 @@ on:
   push: {}
   workflow_dispatch:
 
-env:
-  PYTHON_VERSION: "3.11"
-  ROS_DISTRO: "humble"
-
 jobs:
+  config:
+    uses: ./.github/workflows/config.yaml
+
   lint:
-    name: Pre-commit Hooks & Lint
-    uses: ./.github/workflows/lint.yaml@main
+    needs: config
+    uses: ./.github/workflows/lint.yaml
     with:
-      python-version: ${{ env.PYTHON_VERSION }}
+      python-version: ${{ needs.config.outputs.python-version }}
+      runs_on: ${{ needs.config.outputs.runs_on }}
+    secrets: inherit
 
   build-and-test:
-    name: Build & Test
-    needs: lint
-    if: needs.lint.result == 'success'
-    uses: ./.github/workflows/build-and-test.yaml@main
+    needs: [config, lint]
+    uses: ./.github/workflows/build-and-test.yaml
     with:
-      ros-distro: ${{ env.ROS_DISTRO }}
-      python-version: ${{ env.PYTHON_VERSION }}
+      ros-distro: ${{ needs.config.outputs.ros-distro }}
+      python-version: ${{ needs.config.outputs.python-version }}
+      runs_on: ${{ needs.config.outputs.runs_on }}
+    secrets: inherit
 
   report:
-    name: Report & Summary
-    needs: build-and-test
+    needs: [config, build-and-test]
     if: always() && needs.build-and-test.result != 'skipped'
-    uses: ./.github/workflows/report.yaml@main
+    uses: ./.github/workflows/report.yaml
     with:
       build-status: ${{ needs.build-and-test.outputs.build-status }}
       test-status: ${{ needs.build-and-test.outputs.test-status }}
+      runs_on: ${{ needs.config.outputs.runs_on }}
+    secrets: inherit

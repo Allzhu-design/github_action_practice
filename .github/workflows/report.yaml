@@ -1,5 +1,5 @@
 ---
-name: Report & Summary
+name: Reusable Workflow (Report & Summary)
 
 on:
   workflow_call:
@@ -14,15 +14,19 @@ on:
         required: false
         type: string
         default: 'success'
-
-permissions:
-  pull-requests: write
-  contents: read
+      runs_on:
+        description: 'Runner to use for the job'
+        default: 'ubuntu-22.04'
+        required: false
+        type: string
 
 jobs:
   report:
     name: Post CI Summary
-    runs-on: ubuntu-22.04
+    runs-on: ${{ inputs.runs_on }}
+    permissions:
+      pull-requests: write
+      contents: read
 
     steps:
       - name: Prepare report data
