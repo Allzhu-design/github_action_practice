@@ -1,0 +1,58 @@
+---
+name: Code Quality - Lint & Pre-commit
+
+on:
+  pull_request:
+    branches: ["**"]
+  push: {}
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+  ROS_DISTRO: "humble"
+
+jobs:
+  lint:
+    name: Pre-commit Hooks & Lint
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements-dev.txt
+            ros2_ws/src/*/setup.py
+
+      - name: Install lint dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools
+          pip install -r requirements-dev.txt
+
+      - name: Run pre-commit checks
+        uses: pre-commit/action@v3.0.0
+
+  build-and-test:
+    name: Build & Test
+    needs: lint
+    if: needs.lint.result == 'success'
+    uses: ./.github/workflows/build-and-test.yaml@${{ github.ref }}
+    with:
+      ros-distro: ${{ env.ROS_DISTRO }}
+      python-version: ${{ env.PYTHON_VERSION }}
+
+  report:
+    name: Report
+    needs: build-and-test
+    if: always() && needs.build-and-test.result != 'skipped'
+    uses: ./.github/workflows/report.yaml@${{ github.ref }}
+    with:
+      build-status: ${{ needs.build-and-test.outputs.build-status }}
+      test-status: ${{ needs.build-and-test.outputs.test-status }}

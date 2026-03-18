@@ -1,0 +1,100 @@
+---
+name: Report & Summary
+
+on:
+  workflow_call:
+    inputs:
+      build-status:
+        description: 'Build result from build-and-test'
+        required: false
+        type: string
+        default: 'success'
+      test-status:
+        description: 'Test result from build-and-test'
+        required: false
+        type: string
+        default: 'success'
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  report:
+    name: Post CI Summary
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Prepare report data
+        id: report-data
+        run: |
+          BUILD_STATUS="${{ inputs.build-status }}"
+          TEST_STATUS="${{ inputs.test-status }}"
+
+          if [ "$BUILD_STATUS" = "success" ] && [ "$TEST_STATUS" = "success" ]; then
+            ICON="✅"
+            OVERALL_STATUS="success"
+          else
+            ICON="❌"
+            OVERALL_STATUS="failure"
+          fi
+
+          echo "icon=$ICON" >> $GITHUB_OUTPUT
+          echo "overall_status=$OVERALL_STATUS" >> $GITHUB_OUTPUT
+          echo "build_icon=$([ "$BUILD_STATUS" = "success" ] && echo "✅" || echo "❌")" >> $GITHUB_OUTPUT
+          echo "test_icon=$([ "$TEST_STATUS" = "success" ] && echo "✅" || echo "❌")" >> $GITHUB_OUTPUT
+
+      - name: Post CI summary to PR
+        if: github.event.pull_request != null
+        uses: actions/github-script@v4
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const icon = '${{ steps.report-data.outputs.icon }}';
+            const buildIcon = '${{ steps.report-data.outputs.build_icon }}';
+            const testIcon = '${{ steps.report-data.outputs.test_icon }}';
+
+            // 获取 PR 的所有现有评论
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            // 删除旧的 bot CI 评论
+            for (const comment of comments) {
+              if (comment.user.login === 'github-actions[bot]' &&
+                  comment.body.startsWith('## 🤖 CI Pipeline Summary')) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+            const body = [
+              '## 🤖 CI Pipeline Summary (ROS2)',
+              '',
+              `${icon} **Overall Status**: \`${{ steps.report-data.outputs.overall_status }}\``,
+              '',
+              '| Stage | Status |',
+              '|-------|--------|',
+              '| 🔍 Lint & Pre-commit | ✅ |',
+              `| 🏗️  Build & Test | ${buildIcon} |`,
+              `| 🧪 Tests | ${testIcon} |`,
+              '',
+              `**Execution Order**: lint → build-and-test → report`,
+              `**ROS2 Caching**: Enabled (first run installs, subsequent runs use cache)`,
+              '',
+              `[View Full Workflow Run](${context.payload.pull_request.html_url})`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body,
+            });
+
+            console.log(`✅ Comment posted to PR #${prNumber}`);
