@@ -14,7 +14,6 @@ env:
 jobs:
   lint:
     name: Pre-commit Hooks & Lint
-    runs-on: ubuntu-22.04
     uses: ./.github/workflows/lint.yaml@main
     with:
       python-version: ${{ env.PYTHON_VERSION }}
@@ -23,7 +22,6 @@ jobs:
     name: Build & Test
     needs: lint
     if: needs.lint.result == 'success'
-    runs-on: ubuntu-22.04
     uses: ./.github/workflows/build-and-test.yaml@main
     with:
       ros-distro: ${{ env.ROS_DISTRO }}
@@ -33,7 +31,6 @@ jobs:
     name: Report & Summary
     needs: build-and-test
     if: always() && needs.build-and-test.result != 'skipped'
-    runs-on: ubuntu-22.04
     uses: ./.github/workflows/report.yaml@main
     with:
       build-status: ${{ needs.build-and-test.outputs.build-status }}
