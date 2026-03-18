@@ -2,14 +2,19 @@
 name: Code Quality - Lint & Pre-commit
 
 on:
-  pull_request:
-    branches: ["**"]
-  push: {}
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      python-version:
+        type: string
+        description: 'Python version'
+        default: '3.11'
+    outputs:
+      lint-status:
+        description: 'Lint result status'
+        value: ${{ jobs.lint.outputs.lint-status }}
 
 env:
-  PYTHON_VERSION: "3.11"
-  ROS_DISTRO: "humble"
+  PYTHON_VERSION: '3.11'
 
 jobs:
   lint:
@@ -17,6 +22,9 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: read
+
+    outputs:
+      lint-status: ${{ steps.run-checks.outcome }}
 
     steps:
       - name: Checkout code
@@ -37,22 +45,5 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Run pre-commit checks
+        id: run-checks
         uses: pre-commit/action@v3.0.0
-
-  build-and-test:
-    name: Build & Test
-    needs: lint
-    if: needs.lint.result == 'success'
-    uses: ./.github/workflows/build-and-test.yaml@${{ github.ref }}
-    with:
-      ros-distro: ${{ env.ROS_DISTRO }}
-      python-version: ${{ env.PYTHON_VERSION }}
-
-  report:
-    name: Report
-    needs: build-and-test
-    if: always() && needs.build-and-test.result != 'skipped'
-    uses: ./.github/workflows/report.yaml@${{ github.ref }}
-    with:
-      build-status: ${{ needs.build-and-test.outputs.build-status }}
-      test-status: ${{ needs.build-and-test.outputs.test-status }}

@@ -1,0 +1,40 @@
+---
+name: CI Pipeline - Complete Workflow Chain
+
+on:
+  pull_request:
+    branches: ["**"]
+  push: {}
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+  ROS_DISTRO: "humble"
+
+jobs:
+  lint:
+    name: Pre-commit Hooks & Lint
+    runs-on: ubuntu-22.04
+    uses: ./.github/workflows/lint.yaml@main
+    with:
+      python-version: ${{ env.PYTHON_VERSION }}
+
+  build-and-test:
+    name: Build & Test
+    needs: lint
+    if: needs.lint.result == 'success'
+    runs-on: ubuntu-22.04
+    uses: ./.github/workflows/build-and-test.yaml@main
+    with:
+      ros-distro: ${{ env.ROS_DISTRO }}
+      python-version: ${{ env.PYTHON_VERSION }}
+
+  report:
+    name: Report & Summary
+    needs: build-and-test
+    if: always() && needs.build-and-test.result != 'skipped'
+    runs-on: ubuntu-22.04
+    uses: ./.github/workflows/report.yaml@main
+    with:
+      build-status: ${{ needs.build-and-test.outputs.build-status }}
+      test-status: ${{ needs.build-and-test.outputs.test-status }}
