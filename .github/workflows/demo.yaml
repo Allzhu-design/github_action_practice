@@ -32,6 +32,9 @@ jobs:
     needs: [config, build-and-test]
     if: always() && needs.build-and-test.result != 'skipped'
     uses: ./.github/workflows/report.yaml
+    permissions:
+      pull-requests: write
+      contents: read
     with:
       build-status: ${{ needs.build-and-test.outputs.build-status }}
       test-status: ${{ needs.build-and-test.outputs.test-status }}
